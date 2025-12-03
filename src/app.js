@@ -8,9 +8,13 @@ let currentUser = null;
 let selectedBooking = null;
 let pendingBooking = null;
 
-const washers = ['Washer 1', 'Washer 2', 'Washer 3'];
-const dryers= ['Dryer 1', 'Dryer 2'];
-const machines = [...washers, ...dryers];
+// Load machines from localStorage or use defaults
+let washers = JSON.parse(localStorage.getItem('laundryWashers')) || ['Washer 1', 'Washer 2', 'Washer 3'];
+let dryers = JSON.parse(localStorage.getItem('laundryDryers')) || ['Dryer 1', 'Dryer 2'];
+let machines = [...washers, ...dryers];
+
+let machineToDelete = null;
+
 const timeSlots = [
     '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00',
     '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00',
@@ -21,6 +25,8 @@ const timeSlots = [
 function saveData() {
     localStorage.setItem('laundryUsers', JSON.stringify(users));
     localStorage.setItem('laundryBookings', JSON.stringify(bookings));
+    localStorage.setItem('laundryWashers', JSON.stringify(washers));
+    localStorage.setItem('laundryDryers', JSON.stringify(dryers));
     console.log('Data saved. Total bookings:', bookings.length);
 }
 
@@ -127,11 +133,184 @@ function showUserDashboard() {
     renderMyBookings();
 }
 
-// Show Admin Dashboard
+// Helper function to generate machine names
+function generateMachineName(type, number) {
+    const prefix = type === 'washer' ? 'Washer' : 'Dryer';
+    return `${prefix} ${number}`;
+}
+
+// Helper function to find next available number for a machine type
+function getNextMachineNumber(type) {
+    const machineList = type === 'washer' ? washers : dryers;
+    const existingNumbers = machineList.map(machine => {
+        const match = machine.match(/(\d+)$/);
+        return match ? parseInt(match[1]) : 0;
+    });
+    
+    return existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+}
+
+// Function to add a new machine
+function addNewMachine() {
+    const type = document.getElementById('newMachineType').value;
+    const numberInput = document.getElementById('newMachineNumber').value;
+    
+    if (!type || !numberInput) {
+        alert('Please select a type and enter a number');
+        return;
+    }
+    
+    const number = parseInt(numberInput);
+    if (isNaN(number) || number < 1) {
+        alert('Please enter a valid number (minimum 1)');
+        return;
+    }
+    
+    const machineName = generateMachineName(type, number);
+    
+    // Check if machine already exists
+    if (type === 'washer' && washers.includes(machineName)) {
+        alert(`Washer ${number} already exists!`);
+        return;
+    }
+    
+    if (type === 'dryer' && dryers.includes(machineName)) {
+        alert(`Dryer ${number} already exists!`);
+        return;
+    }
+    
+    // Add the machine
+    if (type === 'washer') {
+        washers.push(machineName);
+    } else {
+        dryers.push(machineName);
+    }
+    
+    // Update the machines array
+    machines = [...washers, ...dryers];
+    
+    // Save and refresh
+    saveData();
+    renderMachineList();
+    alert(`${machineName} added successfully!`);
+    
+    // Reset form
+    document.getElementById('newMachineNumber').value = getNextMachineNumber(type);
+}
+
+// Function to render machine list in admin panel
+function renderMachineList() {
+    const machinesList = document.getElementById('machinesList');
+    if (!machinesList) return;
+    
+    // Combine and sort all machines
+    const allMachines = [
+        ...washers.map(name => ({ name, type: 'washer' })),
+        ...dryers.map(name => ({ name, type: 'dryer' }))
+    ];
+    
+    // Sort by type and then by number
+    allMachines.sort((a, b) => {
+        if (a.type !== b.type) {
+            return a.type === 'washer' ? -1 : 1;
+        }
+        const numA = parseInt(a.name.match(/(\d+)$/)[1]);
+        const numB = parseInt(b.name.match(/(\d+)$/)[1]);
+        return numA - numB;
+    });
+    
+    machinesList.innerHTML = allMachines.map(machine => `
+        <div class="machine-item">
+            <span class="machine-type ${machine.type}">${machine.type.toUpperCase()}</span>
+            <h4>${machine.name}</h4>
+            <p>Type: ${machine.type === 'washer' ? '🧺 Washer' : '🌬️ Dryer'}</p>
+            <div style="margin-top: 10px;">
+                <button class="btn btn-danger" onclick="promptDeleteMachine('${machine.name}', '${machine.type}')" 
+                        style="padding: 6px 12px; font-size: 14px;">
+                    Remove
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Function to prompt for machine deletion
+function promptDeleteMachine(machineName, machineType) {
+    machineToDelete = { name: machineName, type: machineType };
+    document.getElementById('deleteMachineName').textContent = machineName;
+    document.getElementById('deleteMachineModal').style.display = 'flex';
+}
+
+// Function to confirm machine deletion
+function confirmDeleteMachine() {
+    if (!machineToDelete) return;
+    
+    const { name, type } = machineToDelete;
+    
+    // Remove from appropriate array
+    if (type === 'washer') {
+        washers = washers.filter(m => m !== name);
+    } else {
+        dryers = dryers.filter(m => m !== name);
+    }
+    
+    // Remove all bookings for this machine
+    const bookingsBefore = bookings.length;
+    bookings = bookings.filter(b => b.machine !== name);
+    const bookingsRemoved = bookingsBefore - bookings.length;
+    
+    // Update machines array
+    machines = [...washers, ...dryers];
+    
+    // Save data
+    saveData();
+    
+    // Refresh displays
+    renderMachineList();
+    renderSchedule();
+    renderAdminBookings();
+    
+    // Close modal
+    closeDeleteModal();
+    
+    alert(`${name} has been removed. ${bookingsRemoved} booking(s) were cancelled.`);
+}
+
+// Close delete confirmation modal
+function closeDeleteModal() {
+    document.getElementById('deleteMachineModal').style.display = 'none';
+    machineToDelete = null;
+}
+
+// Function to show admin tabs
+function showAdminTab(tab) {
+    // Update tab buttons
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Show/hide content
+    document.querySelectorAll('.admin-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    if (tab === 'bookings') {
+        document.getElementById('adminBookingsTab').classList.add('active');
+        renderAdminBookings();
+    } else if (tab === 'machines') {
+        document.getElementById('adminMachinesTab').classList.add('active');
+        renderMachineList();
+        // Set default value for new machine number
+        const type = document.getElementById('newMachineType').value;
+        document.getElementById('newMachineNumber').value = getNextMachineNumber(type);
+    }
+}
+
+// Show the showAdminDashboard function
 function showAdminDashboard() {
     document.getElementById('adminDashboard').style.display = 'block';
     document.getElementById('userDashboard').style.display = 'none';
     renderAdminBookings();
+    renderMachineList();
 }
 
 // Tab switching
@@ -390,6 +569,12 @@ function updateRescheduleTimeSlots() {
     const date = document.getElementById('rescheduleDate').value;
     const timeSelect = document.getElementById('rescheduleTime');
 
+    // Re-populate machines dropdown with current machines list
+    const machineSelect = document.getElementById('rescheduleMachine');
+    machineSelect.innerHTML = machines.map(m => 
+        `<option value="${m}" ${m === selectedBooking.machine ? 'selected' : ''}>${m}</option>`
+    ).join('');
+
     const availableSlots = timeSlots.filter(time => {
         // Check if slot is already booked
         const isAlreadyBooked = bookings.some(b => 
@@ -436,11 +621,11 @@ function updateRescheduleTimeSlots() {
     ).join('');
 }
 
-
-// Event listeners for reschedule modal
+// Update event listener for new machine type change
 document.addEventListener('DOMContentLoaded', function() {
     const rescheduleMachine = document.getElementById('rescheduleMachine');
     const rescheduleDate = document.getElementById('rescheduleDate');
+    const newMachineType = document.getElementById('newMachineType');
     
     if (rescheduleMachine) {
         rescheduleMachine.addEventListener('change', updateRescheduleTimeSlots);
@@ -448,10 +633,42 @@ document.addEventListener('DOMContentLoaded', function() {
     if (rescheduleDate) {
         rescheduleDate.addEventListener('change', updateRescheduleTimeSlots);
     }
+    if (newMachineType) {
+        newMachineType.addEventListener('change', function() {
+            const nextNumber = getNextMachineNumber(this.value);
+            document.getElementById('newMachineNumber').value = nextNumber;
+        });
+    }
     
     // Check authentication on page load
     checkAuth();
 });
+
+// Update the auto-refresh function
+setInterval(() => {
+    if (currentUser) {
+        if (currentUser.role === 'admin') {
+            renderAdminBookings();
+        } else {
+            renderSchedule();
+            renderMyBookings();
+        }
+    }
+}, 30000);
+
+// Add CSS for warning text
+document.head.insertAdjacentHTML('beforeend', `
+    <style>
+        .warning-text {
+            color: #856404;
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+`);
 
 // Confirm reschedule
 function confirmReschedule() {
