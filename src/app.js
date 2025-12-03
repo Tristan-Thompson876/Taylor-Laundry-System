@@ -6,8 +6,11 @@ let users = JSON.parse(localStorage.getItem('laundryUsers')) || [
 let bookings = JSON.parse(localStorage.getItem('laundryBookings')) || [];
 let currentUser = null;
 let selectedBooking = null;
+let pendingBooking = null;
 
-const machines = ['Washer 1', 'Washer 2', 'Washer 3', 'Dryer 1', 'Dryer 2'];
+const washers = ['Washer 1', 'Washer 2', 'Washer 3'];
+const dryers= ['Dryer 1', 'Dryer 2'];
+const machines = [...washers, ...dryers];
 const timeSlots = [
     '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00',
     '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00',
@@ -111,6 +114,15 @@ function showUserDashboard() {
     document.getElementById('adminDashboard').style.display = 'none';
     document.getElementById('userName').textContent = currentUser.name;
     document.getElementById('userStudentId').textContent = currentUser.studentId;
+    
+    // Add booking limits display
+    const today = getTodayDate();
+    const washerCount = countUserWasherBookings(currentUser.studentId);
+    const dryerCount = countUserDryerBookings(currentUser.studentId);
+    
+    // You could add this information to your dashboard
+    console.log(`User has ${washerCount}/2 washers and ${dryerCount}/2 dryers booked today`);
+    
     renderSchedule();
     renderMyBookings();
 }
@@ -189,10 +201,54 @@ function renderSchedule() {
     });
 }
 
+
+//helper functions for wahsers nd dryers
+function countUserWasherBookings(userId) {
+    const today = getTodayDate();
+    return bookings.filter(b => 
+        b.userId === userId && 
+        b.date === today &&
+        washers.includes(b.machine)
+    ).length;
+}
+
+function countUserDryerBookings(userId) {
+    const today = getTodayDate();
+    return bookings.filter(b => 
+        b.userId === userId && 
+        b.date === today &&
+        dryers.includes(b.machine)
+    ).length;
+}
+
+function isMachineWasher(machine) {
+    return washers.includes(machine);
+}
+
+function isMachineDryer(machine) {
+    return dryers.includes(machine);
+}
 // Open booking modal
-let pendingBooking = null;
+//let pendingBooking = null;
 
 function openBookingModal(machine, date, time) {
+    if (isMachineWasher(machine)) {
+        const washerCount = countUserWasherBookings(currentUser.studentId);
+        if (washerCount >= 2) {
+            alert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
+            return;
+        }
+    }
+    
+    // Check if this is a dryer booking attempt
+    if (isMachineDryer(machine)) {
+        const dryerCount = countUserDryerBookings(currentUser.studentId);
+        if (dryerCount >= 2) {
+            alert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
+            return;
+        }
+    }
+    
     pendingBooking = { machine, date, time };
     document.getElementById('modalMachine').textContent = machine;
     document.getElementById('modalDate').textContent = date;
@@ -208,10 +264,37 @@ function closeModal() {
 // Confirm booking
 function confirmBooking() {
     if (!pendingBooking) return;
+    const userId = currentUser.studentId;
+    const today = getTodayDate();
+
+    // Count current bookings for today
+    const userWasherBookings = bookings.filter(b => 
+        b.userId === userId && 
+        b.date === today &&
+        washers.includes(b.machine)
+    );
+
+    const userDryerBookings = bookings.filter(b => 
+        b.userId === userId && 
+        b.date === today &&
+        dryers.includes(b.machine)
+    );
+
+    // Check limits based on machine type
+    if (isMachineWasher(pendingBooking.machine) && userWasherBookings.length >= 2) {
+        alert('You are only permitted to book 2 washer slots per day.');
+        return;
+    }
+    
+    if (isMachineDryer(pendingBooking.machine) && userDryerBookings.length >= 2) {
+        alert('You are only permitted to book 2 dryer slots per day.');
+        return;
+    }
+
 
     const booking = {
         id: Date.now().toString(),
-        userId: currentUser.studentId,
+        userId: userId,
         userName: currentUser.name,
         machine: pendingBooking.machine,
         date: pendingBooking.date,
@@ -308,18 +391,51 @@ function updateRescheduleTimeSlots() {
     const timeSelect = document.getElementById('rescheduleTime');
 
     const availableSlots = timeSlots.filter(time => {
-        return !bookings.some(b => 
+        // Check if slot is already booked
+        const isAlreadyBooked = bookings.some(b => 
             b.machine === machine && 
             b.time === time && 
             b.date === date &&
             b.id !== selectedBooking.id
         );
+        
+        if (isAlreadyBooked) return false;
+        
+        // Check if user has reached their limit for this machine type
+        if (selectedBooking.userId === currentUser.studentId) {
+            const userId = currentUser.studentId;
+            
+            if (isMachineWasher(machine) && machine !== selectedBooking.machine) {
+                const userWasherBookings = bookings.filter(b => 
+                    b.userId === userId && 
+                    b.date === date &&
+                    washers.includes(b.machine) &&
+                    b.id !== selectedBooking.id
+                );
+                
+                if (userWasherBookings.length >= 2) return false;
+            }
+            
+            if (isMachineDryer(machine) && machine !== selectedBooking.machine) {
+                const userDryerBookings = bookings.filter(b => 
+                    b.userId === userId && 
+                    b.date === date &&
+                    dryers.includes(b.machine) &&
+                    b.id !== selectedBooking.id
+                );
+                
+                if (userDryerBookings.length >= 2) return false;
+            }
+        }
+        
+        return true;
     });
 
     timeSelect.innerHTML = availableSlots.map(time => 
-        `<option value="${time}">${time}</option>`
+        `<option value="${time}" ${time === selectedBooking.time ? 'selected' : ''}>${time}</option>`
     ).join('');
 }
+
 
 // Event listeners for reschedule modal
 document.addEventListener('DOMContentLoaded', function() {
@@ -342,6 +458,44 @@ function confirmReschedule() {
     const machine = document.getElementById('rescheduleMachine').value;
     const date = document.getElementById('rescheduleDate').value;
     const time = document.getElementById('rescheduleTime').value;
+
+    const userId = currentUser.studentId;
+
+    const originalWasWasher = isMachineWasher(selectedBooking.machine);
+    const originalWasDryer = isMachineDryer(selectedBooking.machine);
+    const newIsWasher = isMachineWasher(machine);
+    const newIsDryer = isMachineDryer(machine);
+    
+    if ((originalWasWasher && newIsDryer) || (originalWasDryer && newIsWasher)) {
+        // Changing machine type - check if user has reached limit for new type
+        if (newIsWasher) {
+            const userWasherBookings = bookings.filter(b => 
+                b.userId === userId && 
+                b.date === date &&
+                washers.includes(b.machine) &&
+                b.id !== selectedBooking.id
+            );
+            
+            if (userWasherBookings.length >= 2) {
+                alert('You are only permitted to book 2 washer slots per day.');
+                return;
+            }
+        }
+        
+        if (newIsDryer) {
+            const userDryerBookings = bookings.filter(b => 
+                b.userId === userId && 
+                b.date === date &&
+                dryers.includes(b.machine) &&
+                b.id !== selectedBooking.id
+            );
+            
+            if (userDryerBookings.length >= 2) {
+                alert('You are only permitted to book 2 dryer slots per day.');
+                return;
+            }
+        }
+    }
 
     const booking = bookings.find(b => b.id === selectedBooking.id);
     booking.machine = machine;
@@ -426,6 +580,14 @@ setInterval(() => {
         }
     }
 }, 30000);
+
+function countUserBookings(type, userEmail) {
+    return bookings.filter(
+        booking => booking.type === type && booking.email === userEmail
+    ).length;
+}
+
+
 
 // Initialize - load saved bookings
 console.log('Initialized. Total bookings:', bookings.length);
