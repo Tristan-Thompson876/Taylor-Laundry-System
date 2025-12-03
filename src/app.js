@@ -6,8 +6,15 @@ let users = JSON.parse(localStorage.getItem('laundryUsers')) || [
 let bookings = JSON.parse(localStorage.getItem('laundryBookings')) || [];
 let currentUser = null;
 let selectedBooking = null;
+let pendingBooking = null;
 
-const machines = ['Washer 1', 'Washer 2', 'Washer 3', 'Dryer 1', 'Dryer 2'];
+// Load machines from localStorage or use defaults
+let washers = JSON.parse(localStorage.getItem('laundryWashers')) || ['Washer 1', 'Washer 2', 'Washer 3'];
+let dryers = JSON.parse(localStorage.getItem('laundryDryers')) || ['Dryer 1', 'Dryer 2'];
+let machines = [...washers, ...dryers];
+
+let machineToDelete = null;
+
 const timeSlots = [
     '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00',
     '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00',
@@ -18,6 +25,8 @@ const timeSlots = [
 function saveData() {
     localStorage.setItem('laundryUsers', JSON.stringify(users));
     localStorage.setItem('laundryBookings', JSON.stringify(bookings));
+    localStorage.setItem('laundryWashers', JSON.stringify(washers));
+    localStorage.setItem('laundryDryers', JSON.stringify(dryers));
     console.log('Data saved. Total bookings:', bookings.length);
 }
 
@@ -111,15 +120,197 @@ function showUserDashboard() {
     document.getElementById('adminDashboard').style.display = 'none';
     document.getElementById('userName').textContent = currentUser.name;
     document.getElementById('userStudentId').textContent = currentUser.studentId;
+    
+    // Add booking limits display
+    const today = getTodayDate();
+    const washerCount = countUserWasherBookings(currentUser.studentId);
+    const dryerCount = countUserDryerBookings(currentUser.studentId);
+    
+    // You could add this information to your dashboard
+    console.log(`User has ${washerCount}/2 washers and ${dryerCount}/2 dryers booked today`);
+    
     renderSchedule();
     renderMyBookings();
 }
 
-// Show Admin Dashboard
+// Helper function to generate machine names
+function generateMachineName(type, number) {
+    const prefix = type === 'washer' ? 'Washer' : 'Dryer';
+    return `${prefix} ${number}`;
+}
+
+// Helper function to find next available number for a machine type
+function getNextMachineNumber(type) {
+    const machineList = type === 'washer' ? washers : dryers;
+    const existingNumbers = machineList.map(machine => {
+        const match = machine.match(/(\d+)$/);
+        return match ? parseInt(match[1]) : 0;
+    });
+    
+    return existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+}
+
+// Function to add a new machine
+function addNewMachine() {
+    const type = document.getElementById('newMachineType').value;
+    const numberInput = document.getElementById('newMachineNumber').value;
+    
+    if (!type || !numberInput) {
+        alert('Please select a type and enter a number');
+        return;
+    }
+    
+    const number = parseInt(numberInput);
+    if (isNaN(number) || number < 1) {
+        alert('Please enter a valid number (minimum 1)');
+        return;
+    }
+    
+    const machineName = generateMachineName(type, number);
+    
+    // Check if machine already exists
+    if (type === 'washer' && washers.includes(machineName)) {
+        alert(`Washer ${number} already exists!`);
+        return;
+    }
+    
+    if (type === 'dryer' && dryers.includes(machineName)) {
+        alert(`Dryer ${number} already exists!`);
+        return;
+    }
+    
+    // Add the machine
+    if (type === 'washer') {
+        washers.push(machineName);
+    } else {
+        dryers.push(machineName);
+    }
+    
+    // Update the machines array
+    machines = [...washers, ...dryers];
+    
+    // Save and refresh
+    saveData();
+    renderMachineList();
+    alert(`${machineName} added successfully!`);
+    
+    // Reset form
+    document.getElementById('newMachineNumber').value = getNextMachineNumber(type);
+}
+
+// Function to render machine list in admin panel
+function renderMachineList() {
+    const machinesList = document.getElementById('machinesList');
+    if (!machinesList) return;
+    
+    // Combine and sort all machines
+    const allMachines = [
+        ...washers.map(name => ({ name, type: 'washer' })),
+        ...dryers.map(name => ({ name, type: 'dryer' }))
+    ];
+    
+    // Sort by type and then by number
+    allMachines.sort((a, b) => {
+        if (a.type !== b.type) {
+            return a.type === 'washer' ? -1 : 1;
+        }
+        const numA = parseInt(a.name.match(/(\d+)$/)[1]);
+        const numB = parseInt(b.name.match(/(\d+)$/)[1]);
+        return numA - numB;
+    });
+    
+    machinesList.innerHTML = allMachines.map(machine => `
+        <div class="machine-item">
+            <span class="machine-type ${machine.type}">${machine.type.toUpperCase()}</span>
+            <h4>${machine.name}</h4>
+            <p>Type: ${machine.type === 'washer' ? '🧺 Washer' : '🌬️ Dryer'}</p>
+            <div style="margin-top: 10px;">
+                <button class="btn btn-danger" onclick="promptDeleteMachine('${machine.name}', '${machine.type}')" 
+                        style="padding: 6px 12px; font-size: 14px;">
+                    Remove
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// Function to prompt for machine deletion
+function promptDeleteMachine(machineName, machineType) {
+    machineToDelete = { name: machineName, type: machineType };
+    document.getElementById('deleteMachineName').textContent = machineName;
+    document.getElementById('deleteMachineModal').style.display = 'flex';
+}
+
+// Function to confirm machine deletion
+function confirmDeleteMachine() {
+    if (!machineToDelete) return;
+    
+    const { name, type } = machineToDelete;
+    
+    // Remove from appropriate array
+    if (type === 'washer') {
+        washers = washers.filter(m => m !== name);
+    } else {
+        dryers = dryers.filter(m => m !== name);
+    }
+    
+    // Remove all bookings for this machine
+    const bookingsBefore = bookings.length;
+    bookings = bookings.filter(b => b.machine !== name);
+    const bookingsRemoved = bookingsBefore - bookings.length;
+    
+    // Update machines array
+    machines = [...washers, ...dryers];
+    
+    // Save data
+    saveData();
+    
+    // Refresh displays
+    renderMachineList();
+    renderSchedule();
+    renderAdminBookings();
+    
+    // Close modal
+    closeDeleteModal();
+    
+    alert(`${name} has been removed. ${bookingsRemoved} booking(s) were cancelled.`);
+}
+
+// Close delete confirmation modal
+function closeDeleteModal() {
+    document.getElementById('deleteMachineModal').style.display = 'none';
+    machineToDelete = null;
+}
+
+// Function to show admin tabs
+function showAdminTab(tab) {
+    // Update tab buttons
+    document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    // Show/hide content
+    document.querySelectorAll('.admin-content').forEach(content => {
+        content.classList.remove('active');
+    });
+    
+    if (tab === 'bookings') {
+        document.getElementById('adminBookingsTab').classList.add('active');
+        renderAdminBookings();
+    } else if (tab === 'machines') {
+        document.getElementById('adminMachinesTab').classList.add('active');
+        renderMachineList();
+        // Set default value for new machine number
+        const type = document.getElementById('newMachineType').value;
+        document.getElementById('newMachineNumber').value = getNextMachineNumber(type);
+    }
+}
+
+// Show the showAdminDashboard function
 function showAdminDashboard() {
     document.getElementById('adminDashboard').style.display = 'block';
     document.getElementById('userDashboard').style.display = 'none';
     renderAdminBookings();
+    renderMachineList();
 }
 
 // Tab switching
@@ -189,10 +380,54 @@ function renderSchedule() {
     });
 }
 
+
+//helper functions for wahsers nd dryers
+function countUserWasherBookings(userId) {
+    const today = getTodayDate();
+    return bookings.filter(b => 
+        b.userId === userId && 
+        b.date === today &&
+        washers.includes(b.machine)
+    ).length;
+}
+
+function countUserDryerBookings(userId) {
+    const today = getTodayDate();
+    return bookings.filter(b => 
+        b.userId === userId && 
+        b.date === today &&
+        dryers.includes(b.machine)
+    ).length;
+}
+
+function isMachineWasher(machine) {
+    return washers.includes(machine);
+}
+
+function isMachineDryer(machine) {
+    return dryers.includes(machine);
+}
 // Open booking modal
-let pendingBooking = null;
+//let pendingBooking = null;
 
 function openBookingModal(machine, date, time) {
+    if (isMachineWasher(machine)) {
+        const washerCount = countUserWasherBookings(currentUser.studentId);
+        if (washerCount >= 2) {
+            alert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
+            return;
+        }
+    }
+    
+    // Check if this is a dryer booking attempt
+    if (isMachineDryer(machine)) {
+        const dryerCount = countUserDryerBookings(currentUser.studentId);
+        if (dryerCount >= 2) {
+            alert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
+            return;
+        }
+    }
+    
     pendingBooking = { machine, date, time };
     document.getElementById('modalMachine').textContent = machine;
     document.getElementById('modalDate').textContent = date;
@@ -208,10 +443,37 @@ function closeModal() {
 // Confirm booking
 function confirmBooking() {
     if (!pendingBooking) return;
+    const userId = currentUser.studentId;
+    const today = getTodayDate();
+
+    // Count current bookings for today
+    const userWasherBookings = bookings.filter(b => 
+        b.userId === userId && 
+        b.date === today &&
+        washers.includes(b.machine)
+    );
+
+    const userDryerBookings = bookings.filter(b => 
+        b.userId === userId && 
+        b.date === today &&
+        dryers.includes(b.machine)
+    );
+
+    // Check limits based on machine type
+    if (isMachineWasher(pendingBooking.machine) && userWasherBookings.length >= 2) {
+        alert('You are only permitted to book 2 washer slots per day.');
+        return;
+    }
+    
+    if (isMachineDryer(pendingBooking.machine) && userDryerBookings.length >= 2) {
+        alert('You are only permitted to book 2 dryer slots per day.');
+        return;
+    }
+
 
     const booking = {
         id: Date.now().toString(),
-        userId: currentUser.studentId,
+        userId: userId,
         userName: currentUser.name,
         machine: pendingBooking.machine,
         date: pendingBooking.date,
@@ -307,24 +569,63 @@ function updateRescheduleTimeSlots() {
     const date = document.getElementById('rescheduleDate').value;
     const timeSelect = document.getElementById('rescheduleTime');
 
+    // Re-populate machines dropdown with current machines list
+    const machineSelect = document.getElementById('rescheduleMachine');
+    machineSelect.innerHTML = machines.map(m => 
+        `<option value="${m}" ${m === selectedBooking.machine ? 'selected' : ''}>${m}</option>`
+    ).join('');
+
     const availableSlots = timeSlots.filter(time => {
-        return !bookings.some(b => 
+        // Check if slot is already booked
+        const isAlreadyBooked = bookings.some(b => 
             b.machine === machine && 
             b.time === time && 
             b.date === date &&
             b.id !== selectedBooking.id
         );
+        
+        if (isAlreadyBooked) return false;
+        
+        // Check if user has reached their limit for this machine type
+        if (selectedBooking.userId === currentUser.studentId) {
+            const userId = currentUser.studentId;
+            
+            if (isMachineWasher(machine) && machine !== selectedBooking.machine) {
+                const userWasherBookings = bookings.filter(b => 
+                    b.userId === userId && 
+                    b.date === date &&
+                    washers.includes(b.machine) &&
+                    b.id !== selectedBooking.id
+                );
+                
+                if (userWasherBookings.length >= 2) return false;
+            }
+            
+            if (isMachineDryer(machine) && machine !== selectedBooking.machine) {
+                const userDryerBookings = bookings.filter(b => 
+                    b.userId === userId && 
+                    b.date === date &&
+                    dryers.includes(b.machine) &&
+                    b.id !== selectedBooking.id
+                );
+                
+                if (userDryerBookings.length >= 2) return false;
+            }
+        }
+        
+        return true;
     });
 
     timeSelect.innerHTML = availableSlots.map(time => 
-        `<option value="${time}">${time}</option>`
+        `<option value="${time}" ${time === selectedBooking.time ? 'selected' : ''}>${time}</option>`
     ).join('');
 }
 
-// Event listeners for reschedule modal
+// Update event listener for new machine type change
 document.addEventListener('DOMContentLoaded', function() {
     const rescheduleMachine = document.getElementById('rescheduleMachine');
     const rescheduleDate = document.getElementById('rescheduleDate');
+    const newMachineType = document.getElementById('newMachineType');
     
     if (rescheduleMachine) {
         rescheduleMachine.addEventListener('change', updateRescheduleTimeSlots);
@@ -332,16 +633,86 @@ document.addEventListener('DOMContentLoaded', function() {
     if (rescheduleDate) {
         rescheduleDate.addEventListener('change', updateRescheduleTimeSlots);
     }
+    if (newMachineType) {
+        newMachineType.addEventListener('change', function() {
+            const nextNumber = getNextMachineNumber(this.value);
+            document.getElementById('newMachineNumber').value = nextNumber;
+        });
+    }
     
     // Check authentication on page load
     checkAuth();
 });
+
+// Update the auto-refresh function
+setInterval(() => {
+    if (currentUser) {
+        if (currentUser.role === 'admin') {
+            renderAdminBookings();
+        } else {
+            renderSchedule();
+            renderMyBookings();
+        }
+    }
+}, 30000);
+
+// Add CSS for warning text
+document.head.insertAdjacentHTML('beforeend', `
+    <style>
+        .warning-text {
+            color: #856404;
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+`);
 
 // Confirm reschedule
 function confirmReschedule() {
     const machine = document.getElementById('rescheduleMachine').value;
     const date = document.getElementById('rescheduleDate').value;
     const time = document.getElementById('rescheduleTime').value;
+
+    const userId = currentUser.studentId;
+
+    const originalWasWasher = isMachineWasher(selectedBooking.machine);
+    const originalWasDryer = isMachineDryer(selectedBooking.machine);
+    const newIsWasher = isMachineWasher(machine);
+    const newIsDryer = isMachineDryer(machine);
+    
+    if ((originalWasWasher && newIsDryer) || (originalWasDryer && newIsWasher)) {
+        // Changing machine type - check if user has reached limit for new type
+        if (newIsWasher) {
+            const userWasherBookings = bookings.filter(b => 
+                b.userId === userId && 
+                b.date === date &&
+                washers.includes(b.machine) &&
+                b.id !== selectedBooking.id
+            );
+            
+            if (userWasherBookings.length >= 2) {
+                alert('You are only permitted to book 2 washer slots per day.');
+                return;
+            }
+        }
+        
+        if (newIsDryer) {
+            const userDryerBookings = bookings.filter(b => 
+                b.userId === userId && 
+                b.date === date &&
+                dryers.includes(b.machine) &&
+                b.id !== selectedBooking.id
+            );
+            
+            if (userDryerBookings.length >= 2) {
+                alert('You are only permitted to book 2 dryer slots per day.');
+                return;
+            }
+        }
+    }
 
     const booking = bookings.find(b => b.id === selectedBooking.id);
     booking.machine = machine;
@@ -426,6 +797,14 @@ setInterval(() => {
         }
     }
 }, 30000);
+
+function countUserBookings(type, userEmail) {
+    return bookings.filter(
+        booking => booking.type === type && booking.email === userEmail
+    ).length;
+}
+
+
 
 // Initialize - load saved bookings
 console.log('Initialized. Total bookings:', bookings.length);
