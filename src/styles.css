@@ -860,6 +860,61 @@ select:focus {
     animation: modalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+.custom-alert-content.alert-success-custom {
+    border-left: 4px solid var(--success);
+}
+
+.custom-alert-content.alert-error-custom {
+    border-left: 4px solid var(--danger);
+}
+
+.custom-alert-content.alert-info-custom {
+    border-left: 4px solid var(--info);
+}
+
+.alert-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.alert-icon {
+    width: 28px;
+    height: 28px;
+    flex-shrink: 0;
+}
+
+.alert-success-custom .alert-icon {
+    color: var(--success);
+}
+
+.alert-error-custom .alert-icon {
+    color: var(--danger);
+}
+
+.alert-info-custom .alert-icon {
+    color: var(--info);
+}
+
+.alert-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    margin: 0;
+    color: var(--text-primary);
+}
+
+.alert-message {
+    color: var(--text-secondary);
+    font-size: 1rem;
+    line-height: 1.6;
+    margin-bottom: 24px;
+}
+
+.alert-btn {
+    width: 100%;
+}
+
 .custom-alert-content p {
     color: var(--text-primary);
     font-size: 1rem;
