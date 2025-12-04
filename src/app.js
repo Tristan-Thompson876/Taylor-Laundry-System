@@ -407,9 +407,32 @@ function isMachineWasher(machine) {
 function isMachineDryer(machine) {
     return dryers.includes(machine);
 }
-// Open booking modal
-//let pendingBooking = null;
 
+// Check if booking can be modified (30 minutes before start)
+function canModifyBooking(booking) {
+    const now = new Date();
+    const bookingDateTime = new Date(booking.date + 'T' + booking.time.split(' - ')[0]);
+    const timeDiff = bookingDateTime - now;
+    const minutesDiff = timeDiff / (1000 * 60);
+    
+    return minutesDiff >= 30;
+}
+
+// Get time until booking starts
+function getTimeUntilBooking(booking) {
+    const now = new Date();
+    const bookingDateTime = new Date(booking.date + 'T' + booking.time.split(' - ')[0]);
+    const timeDiff = bookingDateTime - now;
+    const minutesDiff = Math.floor(timeDiff / (1000 * 60));
+    
+    if (minutesDiff < 0) return 'Started';
+    if (minutesDiff < 60) return `${minutesDiff} min`;
+    const hours = Math.floor(minutesDiff / 60);
+    const mins = minutesDiff % 60;
+    return `${hours}h ${mins}m`;
+}
+
+// Open booking modal
 function openBookingModal(machine, date, time) {
     if (isMachineWasher(machine)) {
         const washerCount = countUserWasherBookings(currentUser.studentId);
@@ -514,22 +537,37 @@ function renderMyBookings() {
         return;
     }
 
-    container.innerHTML = myBookings.map(booking => `
+    container.innerHTML = myBookings.map(booking => {
+        const canModify = canModifyBooking(booking);
+        const timeUntil = getTimeUntilBooking(booking);
+        const isPast = timeUntil === 'Started';
+        
+        return `
         <div class="booking-card">
             <h3>🧺 ${booking.machine}</h3>
             <p><strong>📅 Date:</strong> ${booking.date}</p>
             <p><strong>⏰ Time:</strong> ${booking.time}</p>
             <p><strong>🆔 Your ID:</strong> ${booking.userId}</p>
+            ${!isPast ? `<p><strong>⏳ Starts in:</strong> ${timeUntil}</p>` : '<p><strong>✅ Status:</strong> In Progress/Completed</p>'}
+            ${!canModify && !isPast ? '<p style="color: #ef4444; font-size: 14px; margin-top: 10px;">⚠️ Cannot modify - less than 30 minutes until start</p>' : ''}
             <div class="booking-actions">
-                <button class="btn btn-success" onclick="openRescheduleModal('${booking.id}')">Reschedule</button>
-                <button class="btn btn-danger" onclick="cancelBooking('${booking.id}')">Cancel</button>
+                <button class="btn btn-success" onclick="openRescheduleModal('${booking.id}')" ${!canModify ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Reschedule</button>
+                <button class="btn btn-danger" onclick="cancelBooking('${booking.id}')" ${!canModify ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Cancel</button>
             </div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 // Cancel booking
 function cancelBooking(bookingId) {
+    const booking = bookings.find(b => b.id === bookingId);
+    
+    if (!canModifyBooking(booking)) {
+        alert('Sorry, you cannot cancel this booking. Cancellations must be made at least 30 minutes before the start time.');
+        return;
+    }
+    
     if (confirm('Are you sure you want to cancel this booking?')) {
         bookings = bookings.filter(b => b.id !== bookingId);
         saveData();
@@ -542,6 +580,11 @@ function cancelBooking(bookingId) {
 // Open reschedule modal
 function openRescheduleModal(bookingId) {
     selectedBooking = bookings.find(b => b.id === bookingId);
+    
+    if (!canModifyBooking(selectedBooking)) {
+        alert('Sorry, you cannot reschedule this booking. Changes must be made at least 30 minutes before the start time.');
+        return;
+    }
     
     // Populate machines
     const machineSelect = document.getElementById('rescheduleMachine');
@@ -786,25 +829,11 @@ function adminCancelBooking(bookingId) {
     }
 }
 
-// Auto-refresh every 30 seconds
-setInterval(() => {
-    if (currentUser) {
-        if (currentUser.role === 'admin') {
-            renderAdminBookings();
-        } else {
-            renderSchedule();
-            renderMyBookings();
-        }
-    }
-}, 30000);
-
 function countUserBookings(type, userEmail) {
     return bookings.filter(
         booking => booking.type === type && booking.email === userEmail
     ).length;
 }
-
-
 
 // Initialize - load saved bookings
 console.log('Initialized. Total bookings:', bookings.length);
