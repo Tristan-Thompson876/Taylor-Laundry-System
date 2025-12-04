@@ -55,7 +55,7 @@ function login() {
         // Redirect to dashboard
         window.location.href = 'dashboard.html';
     } else {
-        showCustomAlert('Invalid credentials! Please check your email/ID and password.', 'error');
+        alert('Invalid credentials!');
     }
 }
 
@@ -67,12 +67,12 @@ function signup() {
     const password = document.getElementById('signupPassword').value;
 
     if (!name || !email || !studentId || !password) {
-        showCustomAlert('Please fill in all fields!', 'error');
+        alert('Please fill in all fields!');
         return;
     }
 
     if (users.find(u => u.email === email || u.studentId === studentId)) {
-        showCustomAlert('User already exists!', 'error');
+        alert('User already exists!');
         return;
     }
 
@@ -85,10 +85,8 @@ function signup() {
     });
 
     saveData();
-    showCustomAlert('Account created successfully! Please login.', 'success');
-    setTimeout(() => {
-        showLogin();
-    }, 1500);
+    alert('Account created successfully! Please login.');
+    showLogin();
 }
 
 // Logout
@@ -97,8 +95,7 @@ function logout() {
     localStorage.removeItem('currentUser');
     window.location.href = 'index.html';
 }
-//
-//
+
 // Check if user is logged in on dashboard page
 function checkAuth() {
     if (window.location.pathname.includes('dashboard.html')) {
@@ -159,13 +156,13 @@ function addNewMachine() {
     const numberInput = document.getElementById('newMachineNumber').value;
     
     if (!type || !numberInput) {
-        showCustomAlert('Please select a type and enter a number', 'error');
+        alert('Please select a type and enter a number');
         return;
     }
     
     const number = parseInt(numberInput);
     if (isNaN(number) || number < 1) {
-        showCustomAlert('Please enter a valid number (minimum 1)', 'error');
+        alert('Please enter a valid number (minimum 1)');
         return;
     }
     
@@ -173,12 +170,12 @@ function addNewMachine() {
     
     // Check if machine already exists
     if (type === 'washer' && washers.includes(machineName)) {
-        showCustomAlert(`Washer ${number} already exists!`, 'error');
+        alert(`Washer ${number} already exists!`);
         return;
     }
     
     if (type === 'dryer' && dryers.includes(machineName)) {
-        showCustomAlert(`Dryer ${number} already exists!`, 'error');
+        alert(`Dryer ${number} already exists!`);
         return;
     }
     
@@ -195,7 +192,7 @@ function addNewMachine() {
     // Save and refresh
     saveData();
     renderMachineList();
-    showCustomAlert(`${machineName} added successfully!`, 'success');
+    alert(`${machineName} added successfully!`);
     
     // Reset form
     document.getElementById('newMachineNumber').value = getNextMachineNumber(type);
@@ -226,7 +223,7 @@ function renderMachineList() {
         <div class="machine-item">
             <span class="machine-type ${machine.type}">${machine.type.toUpperCase()}</span>
             <h4>${machine.name}</h4>
-            <p>Type: ${machine.type === 'washer' ? 'Washer' : 'Dryer'}</p>
+            <p>Type: ${machine.type === 'washer' ? '🧺 Washer' : '🌬️ Dryer'}</p>
             <div style="margin-top: 10px;">
                 <button class="btn btn-danger" onclick="promptDeleteMachine('${machine.name}', '${machine.type}')" 
                         style="padding: 6px 12px; font-size: 14px;">
@@ -276,7 +273,7 @@ function confirmDeleteMachine() {
     // Close modal
     closeDeleteModal();
     
-    showCustomAlert(`${name} has been removed. ${bookingsRemoved} booking(s) were cancelled.`, 'success');
+    alert(`${name} has been removed. ${bookingsRemoved} booking(s) were cancelled.`);
 }
 
 // Close delete confirmation modal
@@ -384,7 +381,7 @@ function renderSchedule() {
 }
 
 
-//helper functions for washers and dryers
+//helper functions for wahsers nd dryers
 function countUserWasherBookings(userId) {
     const today = getTodayDate();
     return bookings.filter(b => 
@@ -410,37 +407,14 @@ function isMachineWasher(machine) {
 function isMachineDryer(machine) {
     return dryers.includes(machine);
 }
-
-// Check if booking can be modified (30 minutes before start)
-function canModifyBooking(booking) {
-    const now = new Date();
-    const bookingDateTime = new Date(booking.date + 'T' + booking.time.split(' - ')[0]);
-    const timeDiff = bookingDateTime - now;
-    const minutesDiff = timeDiff / (1000 * 60);
-    
-    return minutesDiff >= 30;
-}
-
-// Get time until booking starts
-function getTimeUntilBooking(booking) {
-    const now = new Date();
-    const bookingDateTime = new Date(booking.date + 'T' + booking.time.split(' - ')[0]);
-    const timeDiff = bookingDateTime - now;
-    const minutesDiff = Math.floor(timeDiff / (1000 * 60));
-    
-    if (minutesDiff < 0) return 'Started';
-    if (minutesDiff < 60) return `${minutesDiff} min`;
-    const hours = Math.floor(minutesDiff / 60);
-    const mins = minutesDiff % 60;
-    return `${hours}h ${mins}m`;
-}
-
 // Open booking modal
+//let pendingBooking = null;
+
 function openBookingModal(machine, date, time) {
     if (isMachineWasher(machine)) {
         const washerCount = countUserWasherBookings(currentUser.studentId);
         if (washerCount >= 2) {
-            showCustomAlert('You are only permitted to book 2 washer slots and 2 dryer slots per day.', 'error');
+            alert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
             return;
         }
     }
@@ -449,7 +423,7 @@ function openBookingModal(machine, date, time) {
     if (isMachineDryer(machine)) {
         const dryerCount = countUserDryerBookings(currentUser.studentId);
         if (dryerCount >= 2) {
-            showCustomAlert('You are only permitted to book 2 washer slots and 2 dryer slots per day.', 'error');
+            alert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
             return;
         }
     }
@@ -487,12 +461,12 @@ function confirmBooking() {
 
     // Check limits based on machine type
     if (isMachineWasher(pendingBooking.machine) && userWasherBookings.length >= 2) {
-        showCustomAlert('You are only permitted to book 2 washer slots per day.');
+        alert('You are only permitted to book 2 washer slots per day.');
         return;
     }
     
     if (isMachineDryer(pendingBooking.machine) && userDryerBookings.length >= 2) {
-        showCustomAlert('You are only permitted to book 2 dryer slots per day.');
+        alert('You are only permitted to book 2 dryer slots per day.');
         return;
     }
 
@@ -516,7 +490,7 @@ function confirmBooking() {
     closeModal();
     renderSchedule();
     renderMyBookings();
-    showCustomAlert('Booking confirmed! Your Student ID is: ' + currentUser.studentId);
+    alert('Booking confirmed! Your Student ID is: ' + currentUser.studentId);
 }
 
 // Render my bookings
@@ -533,61 +507,41 @@ function renderMyBookings() {
     if (myBookings.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <h3>No Bookings Yet</h3>
+                <h3>📅 No Bookings Yet</h3>
                 <p>Book a time slot from the "Available Machines" tab to get started!</p>
             </div>
         `;
         return;
     }
 
-    container.innerHTML = myBookings.map(booking => {
-        const canModify = canModifyBooking(booking);
-        const timeUntil = getTimeUntilBooking(booking);
-        const isPast = timeUntil === 'Started';
-        
-        return `
+    container.innerHTML = myBookings.map(booking => `
         <div class="booking-card">
-            <h3>${booking.machine}</h3>
-            <p><strong>Date:</strong> ${booking.date}</p>
-            <p><strong>Time:</strong> ${booking.time}</p>
-            <p><strong>Your ID:</strong> ${booking.userId}</p>
-            ${!isPast ? `<p><strong>Starts in:</strong> ${timeUntil}</p>` : '<p><strong>Status:</strong> In Progress/Completed</p>'}
-            ${!canModify && !isPast ? '<p style="color: #ef4444; font-size: 14px; margin-top: 10px;">Cannot modify - less than 30 minutes until start</p>' : ''}
+            <h3>🧺 ${booking.machine}</h3>
+            <p><strong>📅 Date:</strong> ${booking.date}</p>
+            <p><strong>⏰ Time:</strong> ${booking.time}</p>
+            <p><strong>🆔 Your ID:</strong> ${booking.userId}</p>
             <div class="booking-actions">
-                <button class="btn btn-success" onclick="openRescheduleModal('${booking.id}')" ${!canModify ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Reschedule</button>
-                <button class="btn btn-danger" onclick="cancelBooking('${booking.id}')" ${!canModify ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Cancel</button>
+                <button class="btn btn-success" onclick="openRescheduleModal('${booking.id}')">Reschedule</button>
+                <button class="btn btn-danger" onclick="cancelBooking('${booking.id}')">Cancel</button>
             </div>
         </div>
-    `;
-    }).join('');
+    `).join('');
 }
 
 // Cancel booking
 function cancelBooking(bookingId) {
-    const booking = bookings.find(b => b.id === bookingId);
-    
-    if (!canModifyBooking(booking)) {
-        showCustomAlert('Sorry, you cannot cancel this booking. Cancellations must be made at least 30 minutes before the start time.', 'error');
-        return;
-    }
-    
-    showCustomConfirm('Are you sure you want to cancel this booking?', () => {
+    if (confirm('Are you sure you want to cancel this booking?')) {
         bookings = bookings.filter(b => b.id !== bookingId);
         saveData();
         renderSchedule();
         renderMyBookings();
-        showCustomAlert('Booking cancelled successfully!', 'success');
-    });
+        alert('Booking cancelled successfully!');
+    }
 }
 
 // Open reschedule modal
 function openRescheduleModal(bookingId) {
     selectedBooking = bookings.find(b => b.id === bookingId);
-    
-    if (!canModifyBooking(selectedBooking)) {
-        showCustomAlert('Sorry, you cannot reschedule this booking. Changes must be made at least 30 minutes before the start time.', 'error');
-        return;
-    }
     
     // Populate machines
     const machineSelect = document.getElementById('rescheduleMachine');
@@ -702,6 +656,20 @@ setInterval(() => {
     }
 }, 30000);
 
+// Add CSS for warning text
+document.head.insertAdjacentHTML('beforeend', `
+    <style>
+        .warning-text {
+            color: #856404;
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+`);
+
 // Confirm reschedule
 function confirmReschedule() {
     const machine = document.getElementById('rescheduleMachine').value;
@@ -726,7 +694,7 @@ function confirmReschedule() {
             );
             
             if (userWasherBookings.length >= 2) {
-                showCustomAlert('You are only permitted to book 2 washer slots per day.', 'error');
+                alert('You are only permitted to book 2 washer slots per day.');
                 return;
             }
         }
@@ -740,7 +708,7 @@ function confirmReschedule() {
             );
             
             if (userDryerBookings.length >= 2) {
-                showCustomAlert('You are only permitted to book 2 dryer slots per day.', 'error');
+                alert('You are only permitted to book 2 dryer slots per day.');
                 return;
             }
         }
@@ -755,7 +723,7 @@ function confirmReschedule() {
     closeRescheduleModal();
     renderSchedule();
     renderMyBookings();
-    showCustomAlert('Booking rescheduled successfully!', 'success');
+    alert('Booking rescheduled successfully!');
 }
 
 // Render admin bookings
@@ -771,7 +739,7 @@ function renderAdminBookings() {
             <tr>
                 <td colspan="7">
                     <div class="empty-state">
-                        <h3>No Bookings Yet</h3>
+                        <h3>📋 No Bookings Yet</h3>
                         <p>Bookings will appear here once students make reservations</p>
                     </div>
                 </td>
@@ -810,13 +778,25 @@ function renderAdminBookings() {
 
 // Admin cancel booking
 function adminCancelBooking(bookingId) {
-    showCustomConfirm('Are you sure you want to cancel this booking?', () => {
+    if (confirm('Are you sure you want to cancel this booking?')) {
         bookings = bookings.filter(b => b.id !== bookingId);
         saveData();
         renderAdminBookings();
-        showCustomAlert('Booking cancelled successfully!', 'success');
-    });
+        alert('Booking cancelled successfully!');
+    }
 }
+
+// Auto-refresh every 30 seconds
+setInterval(() => {
+    if (currentUser) {
+        if (currentUser.role === 'admin') {
+            renderAdminBookings();
+        } else {
+            renderSchedule();
+            renderMyBookings();
+        }
+    }
+}, 30000);
 
 function countUserBookings(type, userEmail) {
     return bookings.filter(
@@ -824,84 +804,7 @@ function countUserBookings(type, userEmail) {
     ).length;
 }
 
+
+
 // Initialize - load saved bookings
 console.log('Initialized. Total bookings:', bookings.length);
-
-// Custom Alert Function
-function showCustomAlert(message, type = 'info') {
-    const alertDiv = document.createElement('div');
-    alertDiv.className = 'custom-alert';
-    
-    let iconSvg = '';
-    let alertClass = '';
-    
-    if (type === 'success') {
-        alertClass = 'alert-success-custom';
-        iconSvg = `<svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-            <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>`;
-    } else if (type === 'error') {
-        alertClass = 'alert-error-custom';
-        iconSvg = `<svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="15" y1="9" x2="9" y2="15"></line>
-            <line x1="9" y1="9" x2="15" y2="15"></line>
-        </svg>`;
-    } else {
-        alertClass = 'alert-info-custom';
-        iconSvg = `<svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="16" x2="12" y2="12"></line>
-            <line x1="12" y1="8" x2="12.01" y2="8"></line>
-        </svg>`;
-    }
-    
-    alertDiv.innerHTML = `
-        <div class="custom-alert-content ${alertClass}">
-            <div class="alert-header">
-                ${iconSvg}
-                <h3 class="alert-title">${type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Info'}</h3>
-            </div>
-            <p class="alert-message">${message}</p>
-            <button class="btn btn-primary alert-btn" onclick="this.closest('.custom-alert').remove()">OK</button>
-        </div>
-    `;
-    document.body.appendChild(alertDiv);
-    
-    // Auto-focus the OK button
-    setTimeout(() => {
-        alertDiv.querySelector('button').focus();
-    }, 100);
-}
-
-// Custom Confirm Function
-function showCustomConfirm(message, onConfirm) {
-    const confirmDiv = document.createElement('div');
-    confirmDiv.className = 'custom-alert';
-    confirmDiv.innerHTML = `
-        <div class="custom-alert-content">
-            <p>${message}</p>
-            <div style="display: flex; gap: 10px; margin-top: 20px;">
-                <button class="btn btn-primary" style="flex: 1;" onclick="this.closest('.custom-alert').remove(); (${onConfirm})()">Confirm</button>
-                <button class="btn btn-secondary" style="flex: 1;" onclick="this.closest('.custom-alert').remove()">Cancel</button>
-            </div>
-        </div>
-    `;
-    document.body.appendChild(confirmDiv);
-    
-    // Store the callback function
-    confirmDiv.querySelector('.btn-primary').onclick = function() {
-        confirmDiv.remove();
-        onConfirm();
-    };
-    
-    confirmDiv.querySelector('.btn-secondary').onclick = function() {
-        confirmDiv.remove();
-    };
-    
-    // Auto-focus the Cancel button for safety
-    setTimeout(() => {
-        confirmDiv.querySelector('.btn-secondary').focus();
-    }, 100);
-}
