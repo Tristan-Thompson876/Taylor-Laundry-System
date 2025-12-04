@@ -95,7 +95,8 @@ function logout() {
     localStorage.removeItem('currentUser');
     window.location.href = 'index.html';
 }
-
+//
+//
 // Check if user is logged in on dashboard page
 function checkAuth() {
     if (window.location.pathname.includes('dashboard.html')) {
