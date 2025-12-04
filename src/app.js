@@ -3,6 +3,15 @@ let users = JSON.parse(localStorage.getItem('laundryUsers')) || [
 { email: 'admin@taylor.edu', password: 'admin123', role: 'admin', name: 'Admin User', studentId: 'ADMIN001' }
 ];
 
+window.addEventListener("load", function () {
+    if (window.emailjs) {
+        emailjs.init("0onfjDexOAZW5TUlp");
+        console.log("EmailJS initialized");
+    } else {
+        console.error("EmailJS failed to load!");
+    }
+});
+
 
 let bookings = JSON.parse(localStorage.getItem('laundryBookings')) || [];
 let currentUser = null;
@@ -494,6 +503,7 @@ function closeModal() {
 }
 
 // Confirm booking
+// Confirm booking
 function confirmBooking() {
     if (!pendingBooking) return;
     const userId = currentUser.studentId;
@@ -514,15 +524,14 @@ function confirmBooking() {
 
     // Check limits based on machine type
     if (isMachineWasher(pendingBooking.machine) && userWasherBookings.length >= 2) {
-        showCustomAlert('You are only permitted to book 2 washer slots per day.');
+        showCustomAlert('You are only permitted to book 2 washer slots per day.', 'error');
         return;
     }
     
     if (isMachineDryer(pendingBooking.machine) && userDryerBookings.length >= 2) {
-        showCustomAlert('You are only permitted to book 2 dryer slots per day.');
+        showCustomAlert('You are only permitted to book 2 dryer slots per day.', 'error');
         return;
     }
-
 
     const booking = {
         id: Date.now().toString(),
@@ -531,7 +540,8 @@ function confirmBooking() {
         machine: pendingBooking.machine,
         date: pendingBooking.date,
         time: pendingBooking.time,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        reminderSent: false // ADD THIS LINE - CRITICAL!
     };
 
     bookings.push(booking);
@@ -543,7 +553,7 @@ function confirmBooking() {
     closeModal();
     renderSchedule();
     renderMyBookings();
-    showCustomAlert('Booking confirmed! Your Student ID is: ' + currentUser.studentId);
+    showCustomAlert('Booking confirmed! Your Student ID is: ' + currentUser.studentId, 'success');
 }
 
 // Render my bookings
@@ -716,18 +726,150 @@ document.addEventListener('DOMContentLoaded', function() {
     // Check authentication on page load
     checkAuth();
 });
+// EmailJS configuration
+function sendReminderEmail(booking, userEmail) {
+    console.log("Sending reminder to", userEmail);
+    emailjs.send("service_e8vg3h8", "template_hgt6pkh", {
+        to_email: userEmail,
+        machine: booking.machine,
+        date: booking.date,
+        time: booking.time,
+        
+    })
+    
+    .then(() => {
+        console.log("Reminder sent to", userEmail);
+        booking.reminderSent = true; // Prevent duplicate emails
+        saveData();
+    })
+    .catch((err) => {
+        console.error("EmailJS Error:", err);
+        alert("EmailJS Error: " + JSON.stringify(err));
+    });
+}
+
 
 // Update the auto-refresh function
 setInterval(() => {
-    if (currentUser) {
-        if (currentUser.role === 'admin') {
-            renderAdminBookings();
-        } else {
-            renderSchedule();
-            renderMyBookings();
-        }
+    if (!currentUser) return;
+
+    // Refresh UI
+    if (currentUser.role === 'admin') {
+        renderAdminBookings();
+    } else {
+        renderSchedule();
+        renderMyBookings();
     }
-}, 30000);
+    console.log("check")
+    checkForUpcomingReminders();
+
+}, 60000); // run every 1 minute
+
+function checkForUpcomingReminders() {
+    const now = new Date();
+    console.log(" REMINDER CHECK at:", now.toLocaleString());
+    console.log("Total bookings to check:", bookings.length);
+    
+    let remindersSent = 0;
+    
+    // If no bookings, exit early
+    if (bookings.length === 0) {
+        console.log("No bookings to check");
+        return;
+    }
+    
+    bookings.forEach(booking => {
+        // Skip if reminder already sent - IMPORTANT: check the actual property
+        if (booking.reminderSent === true) {
+            console.log(`⏭ Skipping ${booking.id} - reminder already sent`);
+            return;
+        }
+        
+        console.log(` Processing booking ${booking.id}:`);
+        console.log(`   Machine: ${booking.machine}`);
+        console.log(`   Date: ${booking.date}`);
+        console.log(`   Time: ${booking.time}`);
+        console.log(`   Reminder sent flag: ${booking.reminderSent || false}`);
+        
+        try {
+            // Parse the time slot (e.g., "13:00 - 14:00")
+            const [startTimeStr] = booking.time.split(" - ");
+            
+            // IMPORTANT: Create date string in correct format for your timezone
+            // The issue might be that booking.date is in format "YYYY-MM-DD"
+            // We need to combine it with the time
+            const dateTimeStr = `${booking.date}T${startTimeStr}:00`;
+            const bookingDateTime = new Date(dateTimeStr);
+            
+            // Validate the date
+            if (isNaN(bookingDateTime.getTime())) {
+                console.error(`    INVALID DATE: ${dateTimeStr}`);
+                return;
+            }
+            
+            // Calculate difference in minutes
+            const diffMs = bookingDateTime.getTime() - now.getTime();
+            const diffMinutes = diffMs / (1000 * 60);
+            
+            console.log(`   Time until booking: ${Math.round(diffMinutes)} minutes`);
+            console.log(`   Booking time (local): ${bookingDateTime.toLocaleString()}`);
+            console.log(`   Current time: ${now.toLocaleString()}`);
+            
+            // CHANGE: Send reminder 60 minutes (1 hour) before
+            // Changed from 30 minutes to 60 minutes as requested
+            if (diffMinutes <= 60 && diffMinutes >= 0) {
+                const user = users.find(u => u.studentId === booking.userId);
+                if (user && user.email) {
+                    console.log(`    SENDING REMINDER to ${user.email}`);
+                    console.log(`    ${Math.round(diffMinutes)} minutes before booking`);
+                    
+                    // Send the email
+                    sendReminderEmail(booking, user.email);
+                    remindersSent++;
+                } else {
+                    console.warn(`    No user/email found for booking`);
+                }
+            } else if (diffMinutes < 0) {
+                console.log(`    Booking started ${Math.abs(Math.round(diffMinutes))} minutes ago`);
+            } else {
+                console.log(`    ${Math.round(diffMinutes)} minutes until reminder window (needs to be ≤60)`);
+            }
+            
+        } catch (error) {
+            console.error(`    Error processing booking:`, error);
+        }
+        console.log("---"); // Separator
+    });
+    
+    if (remindersSent > 0) {
+        console.log(` SUCCESS: Sent ${remindersSent} reminder(s)`);
+        // saveData() is called inside sendReminderEmail
+    } else {
+        console.log(`ℹ No reminders were sent this time`);
+    }
+}
+
+// Also update the sendReminderEmail function slightly:
+function sendReminderEmail(booking, userEmail) {
+    console.log(" Sending reminder to", userEmail);
+    emailjs.send("service_e8vg3h8", "template_hgt6pkh", {
+        to_email: userEmail,
+        machine: booking.machine,
+        date: booking.date,
+        time: booking.time,
+    })
+    .then(() => {
+        console.log(" Reminder sent to", userEmail);
+        booking.reminderSent = true; // Mark as sent
+        saveData(); // Save the change
+    })
+    .catch((err) => {
+        console.error(" EmailJS Error:", err);
+        // Don't use alert here - it's annoying for users
+    });
+}
+
+
 
 // Confirm reschedule
 function confirmReschedule() {
