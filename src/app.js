@@ -55,7 +55,7 @@ function login() {
         // Redirect to dashboard
         window.location.href = 'dashboard.html';
     } else {
-        showCustomAlert('Invalid credentials!');
+        showCustomAlert('Invalid credentials! Please check your email/ID and password.', 'error');
     }
 }
 
@@ -67,12 +67,12 @@ function signup() {
     const password = document.getElementById('signupPassword').value;
 
     if (!name || !email || !studentId || !password) {
-        showCustomAlert('Please fill in all fields!');
+        showCustomAlert('Please fill in all fields!', 'error');
         return;
     }
 
     if (users.find(u => u.email === email || u.studentId === studentId)) {
-        showCustomAlert('User already exists!');
+        showCustomAlert('User already exists!', 'error');
         return;
     }
 
@@ -85,8 +85,10 @@ function signup() {
     });
 
     saveData();
-    showCustomAlert('Account created successfully! Please login.');
-    showLogin();
+    showCustomAlert('Account created successfully! Please login.', 'success');
+    setTimeout(() => {
+        showLogin();
+    }, 1500);
 }
 
 // Logout
@@ -156,13 +158,13 @@ function addNewMachine() {
     const numberInput = document.getElementById('newMachineNumber').value;
     
     if (!type || !numberInput) {
-        showCustomAlert('Please select a type and enter a number');
+        showCustomAlert('Please select a type and enter a number', 'error');
         return;
     }
     
     const number = parseInt(numberInput);
     if (isNaN(number) || number < 1) {
-        showCustomAlert('Please enter a valid number (minimum 1)');
+        showCustomAlert('Please enter a valid number (minimum 1)', 'error');
         return;
     }
     
@@ -170,12 +172,12 @@ function addNewMachine() {
     
     // Check if machine already exists
     if (type === 'washer' && washers.includes(machineName)) {
-        showCustomAlert(`Washer ${number} already exists!`);
+        showCustomAlert(`Washer ${number} already exists!`, 'error');
         return;
     }
     
     if (type === 'dryer' && dryers.includes(machineName)) {
-        showCustomAlert(`Dryer ${number} already exists!`);
+        showCustomAlert(`Dryer ${number} already exists!`, 'error');
         return;
     }
     
@@ -192,7 +194,7 @@ function addNewMachine() {
     // Save and refresh
     saveData();
     renderMachineList();
-    showCustomAlert(`${machineName} added successfully!`);
+    showCustomAlert(`${machineName} added successfully!`, 'success');
     
     // Reset form
     document.getElementById('newMachineNumber').value = getNextMachineNumber(type);
@@ -273,7 +275,7 @@ function confirmDeleteMachine() {
     // Close modal
     closeDeleteModal();
     
-    showCustomAlert(`${name} has been removed. ${bookingsRemoved} booking(s) were cancelled.`);
+    showCustomAlert(`${name} has been removed. ${bookingsRemoved} booking(s) were cancelled.`, 'success');
 }
 
 // Close delete confirmation modal
@@ -437,7 +439,7 @@ function openBookingModal(machine, date, time) {
     if (isMachineWasher(machine)) {
         const washerCount = countUserWasherBookings(currentUser.studentId);
         if (washerCount >= 2) {
-            showCustomAlert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
+            showCustomAlert('You are only permitted to book 2 washer slots and 2 dryer slots per day.', 'error');
             return;
         }
     }
@@ -446,7 +448,7 @@ function openBookingModal(machine, date, time) {
     if (isMachineDryer(machine)) {
         const dryerCount = countUserDryerBookings(currentUser.studentId);
         if (dryerCount >= 2) {
-            showCustomAlert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
+            showCustomAlert('You are only permitted to book 2 washer slots and 2 dryer slots per day.', 'error');
             return;
         }
     }
@@ -564,7 +566,7 @@ function cancelBooking(bookingId) {
     const booking = bookings.find(b => b.id === bookingId);
     
     if (!canModifyBooking(booking)) {
-        showCustomAlert('Sorry, you cannot cancel this booking. Cancellations must be made at least 30 minutes before the start time.');
+        showCustomAlert('Sorry, you cannot cancel this booking. Cancellations must be made at least 30 minutes before the start time.', 'error');
         return;
     }
     
@@ -573,7 +575,7 @@ function cancelBooking(bookingId) {
         saveData();
         renderSchedule();
         renderMyBookings();
-        showCustomAlert('Booking cancelled successfully!');
+        showCustomAlert('Booking cancelled successfully!', 'success');
     });
 }
 
@@ -582,7 +584,7 @@ function openRescheduleModal(bookingId) {
     selectedBooking = bookings.find(b => b.id === bookingId);
     
     if (!canModifyBooking(selectedBooking)) {
-        showCustomAlert('Sorry, you cannot reschedule this booking. Changes must be made at least 30 minutes before the start time.');
+        showCustomAlert('Sorry, you cannot reschedule this booking. Changes must be made at least 30 minutes before the start time.', 'error');
         return;
     }
     
@@ -723,7 +725,7 @@ function confirmReschedule() {
             );
             
             if (userWasherBookings.length >= 2) {
-                showCustomAlert('You are only permitted to book 2 washer slots per day.');
+                showCustomAlert('You are only permitted to book 2 washer slots per day.', 'error');
                 return;
             }
         }
@@ -737,7 +739,7 @@ function confirmReschedule() {
             );
             
             if (userDryerBookings.length >= 2) {
-                showCustomAlert('You are only permitted to book 2 dryer slots per day.');
+                showCustomAlert('You are only permitted to book 2 dryer slots per day.', 'error');
                 return;
             }
         }
@@ -752,7 +754,7 @@ function confirmReschedule() {
     closeRescheduleModal();
     renderSchedule();
     renderMyBookings();
-    showCustomAlert('Booking rescheduled successfully!');
+    showCustomAlert('Booking rescheduled successfully!', 'success');
 }
 
 // Render admin bookings
@@ -811,7 +813,7 @@ function adminCancelBooking(bookingId) {
         bookings = bookings.filter(b => b.id !== bookingId);
         saveData();
         renderAdminBookings();
-        showCustomAlert('Booking cancelled successfully!');
+        showCustomAlert('Booking cancelled successfully!', 'success');
     });
 }
 
@@ -825,13 +827,43 @@ function countUserBookings(type, userEmail) {
 console.log('Initialized. Total bookings:', bookings.length);
 
 // Custom Alert Function
-function showCustomAlert(message) {
+function showCustomAlert(message, type = 'info') {
     const alertDiv = document.createElement('div');
     alertDiv.className = 'custom-alert';
+    
+    let iconSvg = '';
+    let alertClass = '';
+    
+    if (type === 'success') {
+        alertClass = 'alert-success-custom';
+        iconSvg = `<svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+        </svg>`;
+    } else if (type === 'error') {
+        alertClass = 'alert-error-custom';
+        iconSvg = `<svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="15" y1="9" x2="9" y2="15"></line>
+            <line x1="9" y1="9" x2="15" y2="15"></line>
+        </svg>`;
+    } else {
+        alertClass = 'alert-info-custom';
+        iconSvg = `<svg class="alert-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="16" x2="12" y2="12"></line>
+            <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>`;
+    }
+    
     alertDiv.innerHTML = `
-        <div class="custom-alert-content">
-            <p>${message}</p>
-            <button class="btn btn-primary" onclick="this.parentElement.parentElement.remove()">OK</button>
+        <div class="custom-alert-content ${alertClass}">
+            <div class="alert-header">
+                ${iconSvg}
+                <h3 class="alert-title">${type === 'success' ? 'Success' : type === 'error' ? 'Error' : 'Info'}</h3>
+            </div>
+            <p class="alert-message">${message}</p>
+            <button class="btn btn-primary alert-btn" onclick="this.closest('.custom-alert').remove()">OK</button>
         </div>
     `;
     document.body.appendChild(alertDiv);
