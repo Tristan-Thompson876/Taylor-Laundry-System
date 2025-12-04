@@ -55,7 +55,7 @@ function login() {
         // Redirect to dashboard
         window.location.href = 'dashboard.html';
     } else {
-        alert('Invalid credentials!');
+        showCustomAlert('Invalid credentials!');
     }
 }
 
@@ -67,12 +67,12 @@ function signup() {
     const password = document.getElementById('signupPassword').value;
 
     if (!name || !email || !studentId || !password) {
-        alert('Please fill in all fields!');
+        showCustomAlert('Please fill in all fields!');
         return;
     }
 
     if (users.find(u => u.email === email || u.studentId === studentId)) {
-        alert('User already exists!');
+        showCustomAlert('User already exists!');
         return;
     }
 
@@ -85,7 +85,7 @@ function signup() {
     });
 
     saveData();
-    alert('Account created successfully! Please login.');
+    showCustomAlert('Account created successfully! Please login.');
     showLogin();
 }
 
@@ -156,13 +156,13 @@ function addNewMachine() {
     const numberInput = document.getElementById('newMachineNumber').value;
     
     if (!type || !numberInput) {
-        alert('Please select a type and enter a number');
+        showCustomAlert('Please select a type and enter a number');
         return;
     }
     
     const number = parseInt(numberInput);
     if (isNaN(number) || number < 1) {
-        alert('Please enter a valid number (minimum 1)');
+        showCustomAlert('Please enter a valid number (minimum 1)');
         return;
     }
     
@@ -170,12 +170,12 @@ function addNewMachine() {
     
     // Check if machine already exists
     if (type === 'washer' && washers.includes(machineName)) {
-        alert(`Washer ${number} already exists!`);
+        showCustomAlert(`Washer ${number} already exists!`);
         return;
     }
     
     if (type === 'dryer' && dryers.includes(machineName)) {
-        alert(`Dryer ${number} already exists!`);
+        showCustomAlert(`Dryer ${number} already exists!`);
         return;
     }
     
@@ -192,7 +192,7 @@ function addNewMachine() {
     // Save and refresh
     saveData();
     renderMachineList();
-    alert(`${machineName} added successfully!`);
+    showCustomAlert(`${machineName} added successfully!`);
     
     // Reset form
     document.getElementById('newMachineNumber').value = getNextMachineNumber(type);
@@ -223,7 +223,7 @@ function renderMachineList() {
         <div class="machine-item">
             <span class="machine-type ${machine.type}">${machine.type.toUpperCase()}</span>
             <h4>${machine.name}</h4>
-            <p>Type: ${machine.type === 'washer' ? '🧺 Washer' : '🌬️ Dryer'}</p>
+            <p>Type: ${machine.type === 'washer' ? 'Washer' : 'Dryer'}</p>
             <div style="margin-top: 10px;">
                 <button class="btn btn-danger" onclick="promptDeleteMachine('${machine.name}', '${machine.type}')" 
                         style="padding: 6px 12px; font-size: 14px;">
@@ -273,7 +273,7 @@ function confirmDeleteMachine() {
     // Close modal
     closeDeleteModal();
     
-    alert(`${name} has been removed. ${bookingsRemoved} booking(s) were cancelled.`);
+    showCustomAlert(`${name} has been removed. ${bookingsRemoved} booking(s) were cancelled.`);
 }
 
 // Close delete confirmation modal
@@ -381,7 +381,7 @@ function renderSchedule() {
 }
 
 
-//helper functions for wahsers nd dryers
+//helper functions for washers and dryers
 function countUserWasherBookings(userId) {
     const today = getTodayDate();
     return bookings.filter(b => 
@@ -437,7 +437,7 @@ function openBookingModal(machine, date, time) {
     if (isMachineWasher(machine)) {
         const washerCount = countUserWasherBookings(currentUser.studentId);
         if (washerCount >= 2) {
-            alert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
+            showCustomAlert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
             return;
         }
     }
@@ -446,7 +446,7 @@ function openBookingModal(machine, date, time) {
     if (isMachineDryer(machine)) {
         const dryerCount = countUserDryerBookings(currentUser.studentId);
         if (dryerCount >= 2) {
-            alert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
+            showCustomAlert('You are only permitted to book 2 washer slots and 2 dryer slots per day.');
             return;
         }
     }
@@ -484,12 +484,12 @@ function confirmBooking() {
 
     // Check limits based on machine type
     if (isMachineWasher(pendingBooking.machine) && userWasherBookings.length >= 2) {
-        alert('You are only permitted to book 2 washer slots per day.');
+        showCustomAlert('You are only permitted to book 2 washer slots per day.');
         return;
     }
     
     if (isMachineDryer(pendingBooking.machine) && userDryerBookings.length >= 2) {
-        alert('You are only permitted to book 2 dryer slots per day.');
+        showCustomAlert('You are only permitted to book 2 dryer slots per day.');
         return;
     }
 
@@ -513,7 +513,7 @@ function confirmBooking() {
     closeModal();
     renderSchedule();
     renderMyBookings();
-    alert('Booking confirmed! Your Student ID is: ' + currentUser.studentId);
+    showCustomAlert('Booking confirmed! Your Student ID is: ' + currentUser.studentId);
 }
 
 // Render my bookings
@@ -530,7 +530,7 @@ function renderMyBookings() {
     if (myBookings.length === 0) {
         container.innerHTML = `
             <div class="empty-state">
-                <h3>📅 No Bookings Yet</h3>
+                <h3>No Bookings Yet</h3>
                 <p>Book a time slot from the "Available Machines" tab to get started!</p>
             </div>
         `;
@@ -544,12 +544,12 @@ function renderMyBookings() {
         
         return `
         <div class="booking-card">
-            <h3>🧺 ${booking.machine}</h3>
-            <p><strong>📅 Date:</strong> ${booking.date}</p>
-            <p><strong>⏰ Time:</strong> ${booking.time}</p>
-            <p><strong>🆔 Your ID:</strong> ${booking.userId}</p>
-            ${!isPast ? `<p><strong>⏳ Starts in:</strong> ${timeUntil}</p>` : '<p><strong>✅ Status:</strong> In Progress/Completed</p>'}
-            ${!canModify && !isPast ? '<p style="color: #ef4444; font-size: 14px; margin-top: 10px;">⚠️ Cannot modify - less than 30 minutes until start</p>' : ''}
+            <h3>${booking.machine}</h3>
+            <p><strong>Date:</strong> ${booking.date}</p>
+            <p><strong>Time:</strong> ${booking.time}</p>
+            <p><strong>Your ID:</strong> ${booking.userId}</p>
+            ${!isPast ? `<p><strong>Starts in:</strong> ${timeUntil}</p>` : '<p><strong>Status:</strong> In Progress/Completed</p>'}
+            ${!canModify && !isPast ? '<p style="color: #ef4444; font-size: 14px; margin-top: 10px;">Cannot modify - less than 30 minutes until start</p>' : ''}
             <div class="booking-actions">
                 <button class="btn btn-success" onclick="openRescheduleModal('${booking.id}')" ${!canModify ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Reschedule</button>
                 <button class="btn btn-danger" onclick="cancelBooking('${booking.id}')" ${!canModify ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>Cancel</button>
@@ -564,17 +564,17 @@ function cancelBooking(bookingId) {
     const booking = bookings.find(b => b.id === bookingId);
     
     if (!canModifyBooking(booking)) {
-        alert('Sorry, you cannot cancel this booking. Cancellations must be made at least 30 minutes before the start time.');
+        showCustomAlert('Sorry, you cannot cancel this booking. Cancellations must be made at least 30 minutes before the start time.');
         return;
     }
     
-    if (confirm('Are you sure you want to cancel this booking?')) {
+    showCustomConfirm('Are you sure you want to cancel this booking?', () => {
         bookings = bookings.filter(b => b.id !== bookingId);
         saveData();
         renderSchedule();
         renderMyBookings();
-        alert('Booking cancelled successfully!');
-    }
+        showCustomAlert('Booking cancelled successfully!');
+    });
 }
 
 // Open reschedule modal
@@ -582,7 +582,7 @@ function openRescheduleModal(bookingId) {
     selectedBooking = bookings.find(b => b.id === bookingId);
     
     if (!canModifyBooking(selectedBooking)) {
-        alert('Sorry, you cannot reschedule this booking. Changes must be made at least 30 minutes before the start time.');
+        showCustomAlert('Sorry, you cannot reschedule this booking. Changes must be made at least 30 minutes before the start time.');
         return;
     }
     
@@ -699,20 +699,6 @@ setInterval(() => {
     }
 }, 30000);
 
-// Add CSS for warning text
-document.head.insertAdjacentHTML('beforeend', `
-    <style>
-        .warning-text {
-            color: #856404;
-            background-color: #fff3cd;
-            border: 1px solid #ffeaa7;
-            padding: 10px;
-            border-radius: 5px;
-            margin: 10px 0;
-        }
-    </style>
-`);
-
 // Confirm reschedule
 function confirmReschedule() {
     const machine = document.getElementById('rescheduleMachine').value;
@@ -737,7 +723,7 @@ function confirmReschedule() {
             );
             
             if (userWasherBookings.length >= 2) {
-                alert('You are only permitted to book 2 washer slots per day.');
+                showCustomAlert('You are only permitted to book 2 washer slots per day.');
                 return;
             }
         }
@@ -751,7 +737,7 @@ function confirmReschedule() {
             );
             
             if (userDryerBookings.length >= 2) {
-                alert('You are only permitted to book 2 dryer slots per day.');
+                showCustomAlert('You are only permitted to book 2 dryer slots per day.');
                 return;
             }
         }
@@ -766,7 +752,7 @@ function confirmReschedule() {
     closeRescheduleModal();
     renderSchedule();
     renderMyBookings();
-    alert('Booking rescheduled successfully!');
+    showCustomAlert('Booking rescheduled successfully!');
 }
 
 // Render admin bookings
@@ -782,7 +768,7 @@ function renderAdminBookings() {
             <tr>
                 <td colspan="7">
                     <div class="empty-state">
-                        <h3>📋 No Bookings Yet</h3>
+                        <h3>No Bookings Yet</h3>
                         <p>Bookings will appear here once students make reservations</p>
                     </div>
                 </td>
@@ -821,12 +807,12 @@ function renderAdminBookings() {
 
 // Admin cancel booking
 function adminCancelBooking(bookingId) {
-    if (confirm('Are you sure you want to cancel this booking?')) {
+    showCustomConfirm('Are you sure you want to cancel this booking?', () => {
         bookings = bookings.filter(b => b.id !== bookingId);
         saveData();
         renderAdminBookings();
-        alert('Booking cancelled successfully!');
-    }
+        showCustomAlert('Booking cancelled successfully!');
+    });
 }
 
 function countUserBookings(type, userEmail) {
@@ -837,3 +823,52 @@ function countUserBookings(type, userEmail) {
 
 // Initialize - load saved bookings
 console.log('Initialized. Total bookings:', bookings.length);
+
+// Custom Alert Function
+function showCustomAlert(message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = 'custom-alert';
+    alertDiv.innerHTML = `
+        <div class="custom-alert-content">
+            <p>${message}</p>
+            <button class="btn btn-primary" onclick="this.parentElement.parentElement.remove()">OK</button>
+        </div>
+    `;
+    document.body.appendChild(alertDiv);
+    
+    // Auto-focus the OK button
+    setTimeout(() => {
+        alertDiv.querySelector('button').focus();
+    }, 100);
+}
+
+// Custom Confirm Function
+function showCustomConfirm(message, onConfirm) {
+    const confirmDiv = document.createElement('div');
+    confirmDiv.className = 'custom-alert';
+    confirmDiv.innerHTML = `
+        <div class="custom-alert-content">
+            <p>${message}</p>
+            <div style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-primary" style="flex: 1;" onclick="this.closest('.custom-alert').remove(); (${onConfirm})()">Confirm</button>
+                <button class="btn btn-secondary" style="flex: 1;" onclick="this.closest('.custom-alert').remove()">Cancel</button>
+            </div>
+        </div>
+    `;
+    document.body.appendChild(confirmDiv);
+    
+    // Store the callback function
+    confirmDiv.querySelector('.btn-primary').onclick = function() {
+        confirmDiv.remove();
+        onConfirm();
+    };
+    
+    confirmDiv.querySelector('.btn-secondary').onclick = function() {
+        confirmDiv.remove();
+    };
+    
+    // Auto-focus the Cancel button for safety
+    setTimeout(() => {
+        confirmDiv.querySelector('.btn-secondary').focus();
+    }, 100);
+}
