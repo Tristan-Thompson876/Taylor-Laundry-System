@@ -1,34 +1,62 @@
 // Initialize data storage
 let users = JSON.parse(localStorage.getItem('laundryUsers')) || [
-    { email: 'admin@taylor.edu', password: 'admin123', role: 'admin', name: 'Admin User', studentId: 'ADMIN001' }
+{ email: 'admin@taylor.edu', password: 'admin123', role: 'admin', name: 'Admin User', studentId: 'ADMIN001' }
 ];
+
 
 let bookings = JSON.parse(localStorage.getItem('laundryBookings')) || [];
 let currentUser = null;
 let selectedBooking = null;
 let pendingBooking = null;
 
-// Load machines from localStorage or use defaults
+
+// Load machines
 let washers = JSON.parse(localStorage.getItem('laundryWashers')) || ['Washer 1', 'Washer 2', 'Washer 3'];
 let dryers = JSON.parse(localStorage.getItem('laundryDryers')) || ['Dryer 1', 'Dryer 2'];
 let machines = [...washers, ...dryers];
-
 let machineToDelete = null;
 
+
 const timeSlots = [
-    '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00',
-    '12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00',
-    '16:00 - 17:00', '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00'
+'08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00',
+'12:00 - 13:00', '13:00 - 14:00', '14:00 - 15:00', '15:00 - 16:00',
+'16:00 - 17:00', '17:00 - 18:00', '18:00 - 19:00', '19:00 - 20:00'
 ];
 
-// Save data to localStorage
+
 function saveData() {
-    localStorage.setItem('laundryUsers', JSON.stringify(users));
-    localStorage.setItem('laundryBookings', JSON.stringify(bookings));
-    localStorage.setItem('laundryWashers', JSON.stringify(washers));
-    localStorage.setItem('laundryDryers', JSON.stringify(dryers));
-    console.log('Data saved. Total bookings:', bookings.length);
+localStorage.setItem('laundryUsers', JSON.stringify(users));
+localStorage.setItem('laundryBookings', JSON.stringify(bookings));
+localStorage.setItem('laundryWashers', JSON.stringify(washers));
+localStorage.setItem('laundryDryers', JSON.stringify(dryers));
 }
+
+
+// CSV EXPORT FUNCTION
+function exportCSV() {
+const rows = document.querySelectorAll('#adminBookingsTable tr');
+
+
+let csv = "Student Name,Student ID,Machine,Date,Time,Status\n";
+
+
+rows.forEach(row => {
+const cols = row.querySelectorAll('td');
+const rowData = [...cols].map(col => col.innerText.replace(/,/g, ''));
+csv += rowData.join(',') + "\n";
+});
+
+
+const blob = new Blob([csv], { type: 'text/csv' });
+const url = URL.createObjectURL(blob);
+
+
+const a = document.createElement('a');
+a.href = url;
+a.download = 'laundry-bookings.csv';
+a.click();
+}
+
 
 // Show/Hide forms
 function showLogin() {
